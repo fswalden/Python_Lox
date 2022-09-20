@@ -1,60 +1,57 @@
-from enum import Enum, auto
+from enum import Enum
 from multiprocessing import current_process
+import lox
 
-class Lox:
-    def __init__(self):
-        # Help
-        a = 1
 
 class TokenType:
     # Single character tokens
-    LEFT_PAREN = auto()
-    RIGHT_PAREN = auto()
-    LEFT_BRACE = auto()
-    RIGHT_BRACE= auto()
-    COMMA = auto()
-    DOT = auto()
-    MINUS = auto()
-    PLUS = auto()
-    SEMICOLON = auto()
-    SLASH = auto()
-    STAR = auto()
+    LEFT_PAREN = 1
+    RIGHT_PAREN = 2
+    LEFT_BRACE = 3
+    RIGHT_BRACE= 4
+    COMMA = 5
+    DOT = 6
+    MINUS = 7
+    PLUS = 8
+    SEMICOLON = 9
+    SLASH = 10
+    STAR = 11
 
     # One or two character tokens.
-    BANG = auto()
-    BANG_EQUAL = auto()
-    EQUAL = auto()
-    EQUAL_EQUAL = auto()
-    GREATER = auto()
-    GREATER_EQUAL = auto()
-    LESS = auto()
-    LESS_EQUAL = auto()
+    BANG = 12
+    BANG_EQUAL = 13
+    EQUAL = 14
+    EQUAL_EQUAL = 15
+    GREATER = 16
+    GREATER_EQUAL = 17
+    LESS = 18
+    LESS_EQUAL = 19
 
     # Literals.
-    IDENTIFIER = auto()
-    STRING = auto()
-    NUMBER = auto()
+    IDENTIFIER = 20
+    STRING = 21
+    NUMBER = 22
 
     # Keywords.
-    AND = auto()
-    CLASS = auto()
-    ELSE = auto()
-    FALSE = auto()
-    FUN = auto()
-    FOR = auto()
-    IF = auto()
-    NIL = auto()
-    OR = auto()
-    PRINT = auto()
-    RETURN = auto()
-    SUPER = auto()
-    THIS = auto()
-    TRUE = auto()
-    VAR = auto()
-    WHILE = auto()
+    AND = 23
+    CLASS = 24
+    ELSE = 25
+    FALSE = 26
+    FUN = 27
+    FOR = 28
+    IF = 29
+    NIL = 30
+    OR = 31
+    PRINT = 32
+    RETURN = 33
+    SUPER = 34
+    THIS = 35
+    TRUE = 36
+    VAR = 37
+    WHILE = 38
 
 
-    EOF = auto()
+    EOF = 39
         
 
 class Token:
@@ -73,6 +70,25 @@ class Scanner:
         self.start = 0
         self.current = 0
         self.line = 1
+
+        self.keywords = {
+            'and': TokenType.AND,
+            'class': TokenType.CLASS,
+            'else': TokenType.ELSE,
+            'false': TokenType.FALSE,
+            'for': TokenType.FOR,
+            'fun': TokenType.FUN,
+            'if': TokenType.IF,
+            'nil': TokenType.NIL,
+            'or': TokenType.OR,
+            'print': TokenType.PRINT,
+            'return': TokenType.RETURN,
+            'super': TokenType.SUPER,
+            'this': TokenType.THIS,
+            'true': TokenType.TRUE,
+            'var': TokenType.VAR,
+            'while': TokenType.WHILE
+        }
         
     def scanTokens(self):
         while not self.isAtEnd():
@@ -111,8 +127,70 @@ class Scanner:
             self.addToken(TokenType.STAR)
         elif c == '!':
             self.addToken(TokenType.BANG_EQUAL if self.match('=') else TokenType.BANG)
+        elif c == '=':
+            self.addToken(TokenType.EQUAL_EQUAL if self.match('=') else TokenType.EQUAL)
+        elif c == '<':
+            self.addToken(TokenType.LESS_EQUAL if self.match('=') else TokenType.LESS)
+        elif c == '>':
+            self.addToken(TokenType.GREATER_EQUAL if self.match('=') else TokenType.GREATER)
+        elif c == '/':
+            if self.match('/'):
+                while self.peek() != '\n' and not (self.isAtEnd()):
+                    self.advance()
+            else:
+                self.addToken(TokenType.SLASH)
+        elif c == ' ':
+            pass
+        elif c == '\r':
+            pass
+        elif c == '\t':
+            pass
+        elif c == '\n':
+            self.line += 1
+        elif c == '"':
+            self.string()
+        elif self.isDigit(c):
+            self.number()
+        elif self.isAlpha(c):
+            self.identifier()
         else:
-            print("Unexpected character")
+            lox.error(self.line, "Unexpected Character.")
+    
+    def identifier(self):
+        while self.isAlphaNumeric(self.peek()):
+            self.advance()
+        text = self.source[self.start, self.current]
+        type = self.keywords[text]
+        if type == None:
+            type = TokenType.IDENTIFIER
+        self.addToken(type)
+        
+
+    def number(self):
+        while self.isDigit(self.peek()):
+            self.advance()
+        if self.peek == '.' and self.isDigit(self.peekNext()):
+            self.advance()
+
+            while self.isDigit(self.peek()):
+                self.advance()
+        
+        self.addToken(TokenType.NUMBER, float(self.source[self.start, self.current]))
+    
+    def string(self):
+        while self.peek() != '"' and not (self.isAtEnd()):
+            if self.peek() == '\n':
+                self.line += 1
+            self.advance()
+        if self.isAtEnd():
+            lox.error(self.line, "Unterminated String.")
+            return
+        
+        self.advance()
+
+        value = self.source((self.start) + 1, (self.current) - 1)
+        self.addToken(TokenType.STRING, value)
+
     def advance(self):
         return self.source[self.current]
         self.current = self.current + 1
@@ -129,6 +207,24 @@ class Scanner:
             return False
         self.current += self.current
         return True
+    def peek(self):
+        if self.isAtEnd():
+            return '\0'
+        return self.source[self.current]
+
+    def peekNext(self):
+        if self.current + 1 >= len(self.source):
+            return '\0'
+        return self.source[self.current + 1]
+
+    def isAlpha(self, c):
+        return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_'
+
+    def isAlphaNumeric(self, c):
+        return self.isAlpha(c) or self.isDigit(c)
+
+    def isDigit(self, c):
+        return c >= '0' and c <= '9'
     
 
 
