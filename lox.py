@@ -19,14 +19,26 @@ class Lox:
                 data = input('> ')
             except EOFError:
                 break
+            
             self.run(data)
             self.hadError = False
     
     def run(self, source):
         scanny = scanner.Scanner(source)
         tokens = scanny.scanTokens()
+        prompt = len(args) < 2
+        outfile = None
+        f = None
+        if not prompt:
+            outfile = 'out' + (str(args[1]))[4] + '.txt'
+            f = open(outfile, 'w')
         for token in tokens:
-            print("<<" + token.toString() + ">> ")
+            if(prompt):
+                print("<<" + token.toString() + ">> ")
+            else:
+                f.write("<<" + token.toString() + ">> \n")
+        if not prompt:
+            f.close()
     
     def error(self, line, message):
         self.report(line, "", message)
@@ -37,7 +49,7 @@ class Lox:
 
 interpreter = Lox()
 if __name__ == '__main__':
-    print(len(args))
+    #print(len(args))
     if len(args) > 2:
         sys.exit(64)
     elif len(args) == 2:

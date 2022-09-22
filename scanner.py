@@ -3,7 +3,7 @@ from multiprocessing import current_process
 import lox
 
 
-class TokenType:
+class TokenType(Enum):
     # Single character tokens
     LEFT_PAREN = 1
     RIGHT_PAREN = 2
@@ -60,8 +60,9 @@ class Token:
         self.lexeme = lexeme
         self.literal = literal
         self.line = line
+        self.plox = lox.Lox()
     def toString(self):
-        return (str(self.tokenType) + " " + self.lexeme + " " + str(self.literal))
+        return (str(TokenType(self.tokenType))[10:] + " " + self.lexeme + " " + str(self.literal))
 
 class Scanner:
     def __init__(self, source):
@@ -92,7 +93,7 @@ class Scanner:
         
     def scanTokens(self):
         while not self.isAtEnd():
-            start = self.current
+            self.start = self.current
             self.scanToken()
         t = Token(TokenType.EOF, "", None, self.line)
         self.tokens.append(t)
@@ -154,28 +155,31 @@ class Scanner:
         elif self.isAlpha(c):
             self.identifier()
         else:
-            lox.error(self.line, "Unexpected Character.")
+            self.plox.error(self.line, "Unexpected Character.")
     
     def identifier(self):
         while self.isAlphaNumeric(self.peek()):
             self.advance()
-        text = self.source[self.start, self.current]
-        type = self.keywords[text]
-        if type == None:
-            type = TokenType.IDENTIFIER
-        self.addToken(type)
+        text = self.source[self.start: self.current]
+        tType = None
+        if text in self.keywords.keys():
+            tType = self.keywords[text]
+        else:
+            tType = TokenType.IDENTIFIER
+        self.addToken(tType)
         
 
     def number(self):
         while self.isDigit(self.peek()):
+            #print(self.peek())
             self.advance()
-        if self.peek == '.' and self.isDigit(self.peekNext()):
+        if self.peek() == '.' and self.isDigit(self.peekNext()):
             self.advance()
 
             while self.isDigit(self.peek()):
                 self.advance()
-        
-        self.addToken(TokenType.NUMBER, float(self.source[self.start, self.current]))
+        #print(str(self.start) + " " + str(self.current))
+        self.addToken2(TokenType.NUMBER, float(self.source[self.start: self.current]))
     
     def string(self):
         while self.peek() != '"' and not (self.isAtEnd()):
@@ -183,21 +187,24 @@ class Scanner:
                 self.line += 1
             self.advance()
         if self.isAtEnd():
-            lox.error(self.line, "Unterminated String.")
+            self.plox.error(self.line, "Unterminated String.")
             return
         
         self.advance()
 
-        value = self.source((self.start) + 1, (self.current) - 1)
-        self.addToken(TokenType.STRING, value)
+        value = self.source[(self.start) + 1: (self.current) - 1]
+        self.addToken2(TokenType.STRING, value)
 
     def advance(self):
-        return self.source[self.current]
+        temp = self.current
         self.current = self.current + 1
+
+        return self.source[temp]
+        
     def addToken(self, type):
         self.addToken2(type, None)
     def addToken2(self, type, literal):
-        text = self.source[self.start, self.current]
+        text = self.source[self.start: self.current]
         t = Token(type, text, literal, self.current)
         self.tokens.append(t)
     def match(self, expected):
@@ -205,7 +212,7 @@ class Scanner:
             return False
         if self.source[self.current] != expected:
             return False
-        self.current += self.current
+        self.current += 1
         return True
     def peek(self):
         if self.isAtEnd():
