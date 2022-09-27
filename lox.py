@@ -1,5 +1,8 @@
 import sys
+from CS503.Interpreter.Lox.scanner import TokenType
 import scanner
+import parser
+import Tool.GenerateAst
 
 args = sys.argv
 
@@ -26,22 +29,25 @@ class Lox:
     def run(self, source):
         scanny = scanner.Scanner(source)
         tokens = scanny.scanTokens()
-        prompt = len(args) < 2
-        outfile = None
-        f = None
-        if not prompt:
-            outfile = 'out' + (str(args[1]))[4] + '.txt'
-            f = open(outfile, 'w')
-        for token in tokens:
-            if(prompt):
-                print("<<" + token.toString() + ">> ")
-            else:
-                f.write("<<" + token.toString() + ">> \n")
-        if not prompt:
-            f.close()
+        
+        parsy = parser.Parser(tokens)
+
+        expression = parsy.parse()
+
+        if self.hadError:
+            return
+        
+        #AstPrinty = Tool.GenerateAst.
+        
     
     def error(self, line, message):
         self.report(line, "", message)
+
+    def error2(self, token, message):
+        if token.tokenType == TokenType.EOF:
+            self.report(token.line, " at end", message)
+        else:
+            self.report(token.line, " at '" + token.lexeme + "'", message)
     
     def report(self, line, where, message):
         sys.stderr.write("[line " + line + "] Error" + where + ": " + message)
