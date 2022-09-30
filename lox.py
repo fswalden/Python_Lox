@@ -2,17 +2,23 @@ import sys
 from CS503.Interpreter.Lox.scanner import TokenType
 import scanner
 import parser
-import Tool.GenerateAst
+import interpreter
 
 args = sys.argv
 
 class Lox:
     def __init__(self):
         self.hadError = False
+        self.hadRuntimeError = False
+        self.interprety = interpreter.Interpreter()
     def runFile(self, path):
         f = open(path, 'r')
         data = f.read()
         f.close
+        if self.hadError:
+            sys.exit(65)
+        if self.hadRuntimeError:
+            sys.exit(70)
         self.run(data)
 
     def runPrompt(self):
@@ -36,7 +42,7 @@ class Lox:
 
         if self.hadError:
             return
-        
+        self.interprety.interpret(expression)
         #AstPrinty = Tool.GenerateAst.
         
     
@@ -49,18 +55,23 @@ class Lox:
         else:
             self.report(token.line, " at '" + token.lexeme + "'", message)
     
+    def runtimeError(self, err):
+        print(err.message +
+        "\n[line " + str(err.token.line) + "]")
+        self.hadRuntimeError = True
+
     def report(self, line, where, message):
         sys.stderr.write("[line " + line + "] Error" + where + ": " + message)
         self.hadError = True
 
-interpreter = Lox()
+loxy = Lox()
 if __name__ == '__main__':
     #print(len(args))
     if len(args) > 2:
         sys.exit(64)
     elif len(args) == 2:
-        interpreter.runFile(str(args[1]))
+        loxy.runFile(str(args[1]))
     else:
-        interpreter.runPrompt()
+        loxy.runPrompt()
 
 
