@@ -38,11 +38,13 @@ class Lox:
         
         parsy = parser.Parser(tokens)
 
-        expression = parsy.parse()
+        statements = parsy.parse()
 
         if self.hadError:
             return
-        self.interprety.interpret(expression)
+        if self.hadRuntimeError:
+            return
+        self.interprety.interpret(statements)
         #AstPrinty = Tool.GenerateAst.
         
     

@@ -2,14 +2,19 @@ import lox
 from expr import *
 from scanner import *
 from RTError import RTError
+from statement import *
+from Environment import *
+
 loxy = lox.Lox
 
-class Interpreter(Expr.Visitor):
+class Interpreter(Expr.Visitor, Stmt.Visitor):
 
-    def interpret(self, expression):
+    def __init__(self):
+        self.environmenty = environment()
+    def interpret(self, statements):
         try:
-            value = self.evaluate(expression)
-            print(self.stringify(value))
+            for statement in statements:
+                self.execute(statement)
         except RTError:
             loxy.runtimeError(RTError)
 
@@ -23,6 +28,45 @@ class Interpreter(Expr.Visitor):
     def evaluate(self, expr):
         return expr.accept(self)
 
+    def execute(self, stmt):
+        return stmt.accept(self)
+
+    def executeBlock(self, statements, envy):
+        previous = self.environmenty
+        try:
+            self.environmenty = envy
+            for statement in statements:
+                self.execute(statement)
+        finally:
+            self.environmenty = previous
+
+    def visitBlockStmt(self, stmt):
+        envy = environment(self.environmenty)
+        self.executeBlock(stmt.statements, envy)
+        return None
+
+    def visitExpressionStmt(self, stmt):
+        self.evaluate(stmt.expression)
+        return None
+    
+    def visitPrintStmt(self, stmt):
+        value = self.evaluate(stmt.expression)
+        print(self.stringifiy(value))
+        return None
+
+    def visitVarStmt(self, stmt):
+        value = None
+        if stmt.initalizer != None:
+            value = self.evaluate(stmt.initializer)
+
+        self.environmenty.define(stmt.name.lexeme, value)
+        return None
+
+    def visitAssignExpr(self, expr):
+        value = self.evaluate(expr.value)
+        self.environmenty.assign(expr.name, value)
+        return value
+
     def visitUnaryExpr(self, expr):
         right = self.evaluate(expr.right)
 
@@ -34,6 +78,9 @@ class Interpreter(Expr.Visitor):
 
         return None
     
+    def visitVariableExpr(self, expr):
+        return self.environmenty.get(expr.name)
+
     def isTruthy(self, object):
         if object == None:
             return False
